@@ -65,7 +65,7 @@ def test_pproctree():
     r.match(
         "^init \(1\)\: 2$",
         "^\|\-sh \(2\)\: 2$",
-        "^  \|\-proctree \(2\)\: 4$",
+        "^  \|\-proctree \(3\)\: 4$",
         "^OK$",
     )
 
@@ -80,7 +80,7 @@ def test_pproctree_nested():
         "^\|\-sh \(2\)\: 2$",
         "^  \|\-sh \(3\)\: 2$",
         "^    \|\-sh \(4\)\: 2$",
-        "^       \|\-proctree \(5\)\: 4$",
+        "^      \|\-proctree \(5\)\: 4$",
         "^OK$",
     )
 
