@@ -1,0 +1,65 @@
+$ time sh load.sh
+269 814 3484 
+Executing sh took 21 ticks
+$ time sh load.sh
+322 973 4130 
+Executing sh took 21 ticks
+$ time sh load.sh
+200 604 2566 
+Executing sh took 21 ticks
+$ time sh load.sh
+285 865 3693 
+Executing sh took 23 ticks
+$ time sh load.sh
+240 719 3114 
+Executing sh took 21 ticks
+$ time sh load.sh
+317 959 4048 
+Executing sh took 21 ticks
+$ time sh load.sh
+248 754 3242 
+Executing sh took 21 ticks
+$ time sh load.sh
+304 916 3949 
+Executing sh took 22 ticks
+$ time sh load.sh
+354 1075 4626 
+Executing sh took 23 ticks
+$ time sh load.sh
+213 646 2780 
+Executing sh took 22 ticks
+
+
+vs
+
+$ time sh load.sh
+383 1158 4981 
+Executing sh took 29 ticks
+$ time sh load.sh
+374 1131 4765 
+Executing sh took 22 ticks
+$ time sh load.sh
+215 652 2806 
+Executing sh took 20 ticks
+$ time sh load.sh
+404 1223 5209 
+Executing sh took 25 ticks
+$ time sh load.sh
+270 819 3497 
+Executing sh took 21 ticks
+$ time sh load.sh
+235 712 3087 
+Executing sh took 21 ticks
+$ time sh load.sh
+254 770 3311 
+Executing sh took 21 ticks
+$ time sh load.sh
+251 755 3267 
+Executing sh took 20 ticks
+$ time sh load.sh
+314 931 3995 
+Executing sh took 21 ticks
+$ time sh load.sh
+278 841 3635 
+Executing sh took 21 ticks
+
