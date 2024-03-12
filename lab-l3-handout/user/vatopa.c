@@ -13,10 +13,7 @@ int main(int argc, char *argv[]) {
 
     uint64 pa = va2pa(addr, pid); // Call the va2pa system call
 
-    if(pa == 0)
-        printf("Cannot find physical address for virtual address 0x%x in process %d\n", addr, pid);
-    else
-        printf("Physical address for virtual address 0x%x in process %d is: 0x%x\n", addr, pid, pa);
+    printf("0x%x\n", pa);
 
     exit(0);
 }

@@ -332,6 +332,36 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   return -1;
 }
 
+int uvmcow(pagetable_t old, pagetable_t new, uint64 sz) {
+    pte_t *pte;
+    uint64 i;
+    uint flags;
+
+    for(i = 0; i < sz; i += PGSIZE){
+        if((pte = walk(old, i, 0)) == 0)
+            panic("uvmcow: pte should exist");
+        if((*pte & PTE_V) == 0)
+            panic("uvmcow: page not present");
+
+        // Adjust flags to be read-only
+        flags = PTE_FLAGS(*pte) & ~PTE_W;
+        flags |= PTE_R; // Ensure read permission is set
+
+        // Map the page as read-only in the child's page table
+        if(mappages(new, i, PGSIZE, PTE2PA(*pte), flags) != 0){
+            goto err;
+        }
+
+        // Increment the reference count for the physical page if needed
+    }
+    return 0;
+
+err:
+    uvmunmap(new, 0, i / PGSIZE, 1);
+    return -1;
+}
+
+
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
 void
