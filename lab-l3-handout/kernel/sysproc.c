@@ -117,11 +117,49 @@ uint64 sys_schedset(void)
     return 0;
 }
 
-uint64 sys_va2pa(void)
+/*uint64 sys_va2pa(void)
 {
     printf("TODO: IMPLEMENT ME [%s@%s (line %d)]", __func__, __FILE__, __LINE__);
     return 0;
+}*/
+
+extern struct proc proc[NPROC];
+
+uint64 sys_va2pa(void)
+{
+    
+    uint64 va; // Virtual address
+    argaddr(0, &va);
+    int pid = 0;   // Process ID get from args
+    argint(1, &pid);
+
+    struct proc *target_proc = myproc(); // Default to current process
+
+    if (pid != 0) { // If a specific PID is requested
+        int found = 0;
+        for(struct proc *p = proc; p < &proc[NPROC]; p++) {
+            if(p->pid == pid && p->state != UNUSED) {
+                target_proc = p;
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            return 0; // PID not found, return 0
+        }
+    }
+
+    // Walk the page table to find the physical address corresponding to the given virtual address
+    pte_t *pte = walk(target_proc->pagetable, va, 0); // 0 to not create
+    if(pte == 0 || (*pte & PTE_V) == 0) {
+        return 0; // Virtual address not mapped
+    }
+
+    uint64 pa = PTE2PA(*pte) | (va & 0xFFF); // Extract physical address and add offset
+    
+    return pa;
 }
+
 
 uint64 sys_pfreepages(void)
 {
