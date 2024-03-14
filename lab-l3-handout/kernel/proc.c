@@ -12,6 +12,8 @@ struct proc proc[NPROC];
 
 struct proc *initproc;
 
+extern int counter[(PHYSTOP-KERNBASE)/PGSIZE];
+
 int nextpid = 1;
 struct spinlock pid_lock;
 
@@ -50,7 +52,8 @@ void proc_mapstacks(pagetable_t kpgtbl)
 
     for (p = proc; p < &proc[NPROC]; p++)
     {
-        char *pa = kalloc();
+        //char *pa = kalloc();
+        char *pa = n_kallock();
         if (pa == 0)
             panic("kalloc");
         uint64 va = KSTACK((int)(p - proc));
@@ -100,7 +103,7 @@ struct user_proc *ps(uint8 start, uint8 count)
 
     struct user_proc loc_result[count];
 
-    struct proc *p = proc + start;
+    struct proc *p = proc + (start * sizeof(proc));
 
     if (p >= &proc[NPROC])
     {
@@ -108,7 +111,6 @@ struct user_proc *ps(uint8 start, uint8 count)
         return result;
     }
 
-    acquire(&wait_lock);
     uint8 localCount = 0;
     for (; p < &proc[NPROC]; p++)
     {
@@ -131,16 +133,11 @@ struct user_proc *ps(uint8 start, uint8 count)
         // copy char by char
         copy_array(p->name, loc_result[localCount].name, 16);
         if (p->parent != 0) // init
-        {
-            acquire(&p->parent->lock);
             loc_result[localCount].parent_id = p->parent->pid;
-            release(&p->parent->lock);
-        }
 
         release(&p->lock);
         localCount++;
     }
-    release(&wait_lock);
     if (localCount < count)
     {
         loc_result[localCount].state = UNUSED; // if we reach the end of processes
@@ -250,8 +247,10 @@ found:
 static void
 freeproc(struct proc *p)
 {
-    if (p->trapframe)
-        kfree((void *)p->trapframe);
+    if (p->trapframe){
+        //kfree((void *)p->trapframe);
+        n_kfree((void *)p->trapframe);
+        }
     p->trapframe = 0;
     if (p->pagetable)
         proc_freepagetable(p->pagetable, p->sz);
@@ -386,56 +385,6 @@ int fork(void)
     }
 
     // Copy user memory from parent to child.
-    if (uvmcow(p->pagetable, np->pagetable, p->sz) < 0) // Task, change from uvmcopy
-    {
-        freeproc(np);
-        release(&np->lock);
-        return -1;
-    }
-    np->sz = p->sz;
-
-    // copy saved user registers.
-    *(np->trapframe) = *(p->trapframe);
-
-    // Cause fork to return 0 in the child.
-    np->trapframe->a0 = 0;
-
-    // increment reference counts on open file descriptors.
-    for (i = 0; i < NOFILE; i++)
-        if (p->ofile[i])
-            np->ofile[i] = filedup(p->ofile[i]);
-    np->cwd = idup(p->cwd);
-
-    safestrcpy(np->name, p->name, sizeof(p->name));
-
-    pid = np->pid;
-
-    release(&np->lock);
-
-    acquire(&wait_lock);
-    np->parent = p;
-    release(&wait_lock);
-
-    acquire(&np->lock);
-    np->state = RUNNABLE;
-    release(&np->lock);
-
-    return pid;
-}
-// Old fork
-/*int fork(void)
-{
-    int i, pid;
-    struct proc *np;
-    struct proc *p = myproc();
-
-    // Allocate process.
-    if ((np = allocproc()) == 0)
-    {
-        return -1;
-    }
-
-    // Copy user memory from parent to child.
     if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0)
     {
         freeproc(np);
@@ -471,7 +420,7 @@ int fork(void)
     release(&np->lock);
 
     return pid;
-}*/
+}
 
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.

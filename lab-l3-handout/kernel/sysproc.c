@@ -8,6 +8,8 @@
 
 extern uint64 FREE_PAGES; // kalloc.c keeps track of those
 
+extern struct proc proc[NPROC];
+
 uint64
 sys_exit(void)
 {
@@ -117,49 +119,49 @@ uint64 sys_schedset(void)
     return 0;
 }
 
-/*uint64 sys_va2pa(void)
-{
-    printf("TODO: IMPLEMENT ME [%s@%s (line %d)]", __func__, __FILE__, __LINE__);
-    return 0;
-}*/
-
-extern struct proc proc[NPROC];
-
 uint64 sys_va2pa(void)
 {
-    
-    uint64 va; // Virtual address
-    argaddr(0, &va);
-    int pid = 0;   // Process ID get from args
-    argint(1, &pid);
+    uint64 VA;
+    int PID;
+    argaddr(0, &VA);
+    argint(1, &PID);
 
-    struct proc *target_proc = myproc(); // Default to current process
-
-    if (pid != 0) { // If a specific PID is requested
-        int found = 0;
-        for(struct proc *p = proc; p < &proc[NPROC]; p++) {
-            if(p->pid == pid && p->state != UNUSED) {
-                target_proc = p;
-                found = 1;
+    struct proc *p;
+    int validPID = 0;
+    if (PID != 0)
+    {
+        // Checking if the PID given is valid
+        for (p = proc; p < &proc[NPROC]; p++)
+        {
+            acquire(&p->lock);
+            if (p->pid == PID)
+            {
+                validPID = 1;
+                release(&p->lock);
                 break;
             }
-        }
-        if (!found) {
-            return 0; // PID not found, return 0
+            release(&p->lock);
         }
     }
 
-    // Walk the page table to find the physical address corresponding to the given virtual address
-    pte_t *pte = walk(target_proc->pagetable, va, 0); // 0 to not create
-    if(pte == 0 || (*pte & PTE_V) == 0) {
-        return 0; // Virtual address not mapped
+    if (!validPID)
+    {
+        p = myproc();
     }
 
-    uint64 pa = PTE2PA(*pte) | (va & 0xFFF); // Extract physical address and add offset
-    
-    return pa;
+    pagetable_t pagetable = p->pagetable;
+    uint64 PA = walkaddr(pagetable, VA);
+    PA |= (0xFFF & VA);
+
+    if (PA == 0)
+    {
+        return 0;
+    }
+    else 
+    {
+        return PA; 
+    }
 }
-
 
 uint64 sys_pfreepages(void)
 {

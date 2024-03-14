@@ -118,9 +118,13 @@ virtio_disk_init(void)
     panic("virtio disk max queue too short");
 
   // allocate and zero queue memory.
-  disk.desc = kalloc();
-  disk.avail = kalloc();
-  disk.used = kalloc();
+  //disk.desc = kalloc();
+  //disk.avail = kalloc();
+  //disk.used = kalloc();
+  disk.desc = n_kallock();
+  disk.avail = n_kallock();
+  disk.used = n_kallock();
+
   if(!disk.desc || !disk.avail || !disk.used)
     panic("virtio disk kalloc");
   memset(disk.desc, 0, PGSIZE);

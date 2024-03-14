@@ -12,6 +12,8 @@
 uint64 MAX_PAGES = 0;
 uint64 FREE_PAGES = 0;
 
+int counter[(PHYSTOP-KERNBASE)/PGSIZE]; 
+
 void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
@@ -32,7 +34,7 @@ void kinit()
 {
     initlock(&kmem.lock, "kmem");
     freerange(end, (void *)PHYSTOP);
-    MAX_PAGES = FREE_PAGES;
+    MAX_PAGES = FREE_PAGES; 
 }
 
 void freerange(void *pa_start, void *pa_end)
@@ -93,25 +95,13 @@ kalloc(void)
 
 }
 
-int counter[(PHYSTOP-KERNBASE)/PGSIZE]; 
-
-// Free the page of physical memory pointed at by pa,
-// which normally should have been returned by a
-// call to kalloc().  (The exception is when
-// initializing the allocator; see kinit above.)
-void newkfree(void *pa)
-{
+void n_kfree(void *pa){
     int i = ((uint64)pa-KERNBASE) /PGSIZE;
     counter[i]--;
     kfree(pa);
 }
 
-// Allocate one 4096-byte page of physical memory.
-// Returns a pointer that the kernel can use.
-// Returns 0 if the memory cannot be allocated.
-void *
-newkalloc(void)
-{
+void * n_kallock(void){
     void * pointer = kalloc();
     if(counter[((uint64)pointer-KERNBASE )/PGSIZE]==0 && (uint64)pointer!=0){
         counter[((uint64)pointer-KERNBASE )/ PGSIZE]++;
@@ -119,10 +109,10 @@ newkalloc(void)
     return pointer;
 }
 
-void refinc(void *pa){
+void ref_increment(void *pa){
     counter[((uint64)pa-KERNBASE )/ PGSIZE]++;
 }
 
-void refdec(void *pa){
+void ref_decrement(void *pa){
     counter[((uint64)pa-KERNBASE )/ PGSIZE]--;
 }

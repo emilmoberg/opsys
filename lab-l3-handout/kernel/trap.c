@@ -9,14 +9,14 @@
 struct spinlock tickslock;
 uint ticks;
 
+extern int counter[(PHYSTOP-KERNBASE)/PGSIZE];
+
 extern char trampoline[], uservec[], userret[];
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
 
 extern int devintr();
-
-extern int counter[(PHYSTOP-KERNBASE)/PGSIZE];
 
 void
 trapinit(void)
@@ -29,15 +29,6 @@ void
 trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
-}
-
-// COW handling function
-int handle_cow(uint64 faulting_address) {
-  // 1. Allocate new page
-  // 2. Copy contents from old to new
-  // 3. Update page table entry
-  // Ensure proper synchronization and error handling
-  return 0; 
 }
 
 //
@@ -80,40 +71,41 @@ usertrap(void)
     // ok
   } else if(r_scause()==0x000000000000000fL){
 
-    uint64 va = r_stval();
-    uint64 base = PGROUNDDOWN(va);
-    char *new_page;
-    pte_t *pte;
-    uint64 flags;
+  uint64 va = r_stval();
+  uint64 base = PGROUNDDOWN(va);
+  char *new_page;
+  pte_t *pte;
+  uint64 flags;
 
-    pagetable_t pagetable = p->pagetable;
-    pte = walk(pagetable,base,0);
-    uint64 PA = PTE2PA(*pte);
+  pagetable_t pagetable = p->pagetable;
+  pte = walk(pagetable,base,0);
+  uint64 PA = PTE2PA(*pte);
 
-    if (PA==0)
-      panic("uvmcopy: walkaddr failed\n");
+  if (PA==0)
+    panic("uvmcopy: walkaddr failed\n");
 
-    if(pte == 0)
-        panic("uvmcopy: pte should exist");
+  if(pte == 0)
+      panic("uvmcopy: pte should exist");
 
-    if ((new_page = newkalloc())==0){
-          printf("SEAGFAULT\n");
-          setkilled(p);
-    }
+  if ((new_page = n_kallock())==0){
+        printf("SEAGFAULT\n");
+        setkilled(p);
+  }
 
-    flags = PTE_FLAGS(*pte);
-    flags |= PTE_W;
+  flags = PTE_FLAGS(*pte);
+  flags |= PTE_W;
 
-    memmove(new_page,(void *)PA, PGSIZE);
-    uvmunmap(pagetable, base, 1, 1);
+  memmove(new_page,(void *)PA, PGSIZE);
+  uvmunmap(pagetable, base, 1, 1);
+  //ref_decrement((void *)PA);
 
-    if(mappages(pagetable, base, PGSIZE, (uint64)new_page, flags) != 0){
-      if (counter[((uint64)new_page-KERNBASE )/ PGSIZE]==0)
-        newkfree(new_page);
-      else
-        refdec((void *)PA);
-      printf("SEAGFAULT\n");
-    }
+  if(mappages(pagetable, base, PGSIZE, (uint64)new_page, flags) != 0){
+    if (counter[((uint64)new_page-KERNBASE )/ PGSIZE]==0)
+      n_kfree(new_page);
+    else
+      ref_decrement((void *)PA);
+    printf("SEAGFAULT\n");
+  }
 
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
@@ -266,4 +258,3 @@ devintr()
     return 0;
   }
 }
-
