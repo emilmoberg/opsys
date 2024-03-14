@@ -76,44 +76,45 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if(r_scause() == 15) { // Check for a page fault due to write attempt !!!!!!!!!!! TODOOOOOO
-    uint64 faulting_va = r_stval();
-    struct proc *p = myproc();
+  } else if(r_scause() == 15) { // Check for a page fault due to write attempt
+ uint64 faulting_va = r_stval();
+struct proc *p = myproc();
 
-    char *mem;
-    pte_t *pte;
-    uint64 pa;
+ char *mem;
+ pte_t *pte;
+uint64 pa;
 
-    // Walk the page table to find the PTE for the faulting address
-    pte = walk(p->pagetable, faulting_va, 0);
-    if(pte == 0 || (*pte & PTE_V) == 0 || !(*pte & PTE_R) || (*pte & PTE_W)) {
-      // This is not a COW fault, handle as unexpected page fault
-      p->killed = 1;
-    } else {
-      // Allocate a new page and copy contents from the old page
-      mem = kalloc();
-      if(mem == 0) {
-        // Failed to allocate memory, kill the process
-        p->killed = 1;
-      } else {
-        pa = PTE2PA(*pte);
-        memmove(mem, (char*)pa, PGSIZE);
-        printf("did move mem\n");
+// Walk the page table to find the PTE for the faulting address
+ pte = walk(p->pagetable, faulting_va, 0);
+ if(pte == 0 || (*pte & PTE_V) == 0 || !(*pte & PTE_R) || (*pte & PTE_W) || !(*pte & PTE_COW)) {
+ // This is not a COW fault, handle as unexpected page fault
+p->killed = 1;
+} else {
+// Allocate a new page and copy contents from the old page
+mem = kalloc();
+if(mem == 0) {
+// Failed to allocate memory, kill the process
+ p->killed = 1;
+} else {
+pa = PTE2PA(*pte);
+memmove(mem, (char*)pa, PGSIZE);
+ printf("did move mem\n");
 
-        // Before updating the PTE, unmap the old mapping.
-        uvmunmap(p->pagetable, PGROUNDDOWN(faulting_va), 1, 1);
-        printf("unmapped\n");
+// Before updating the PTE, unmap the old mapping.
+ uvmunmap(p->pagetable, PGROUNDDOWN(faulting_va), 1, 0);
+printf("unmapped\n");
 
-        // Now, remap the virtual address to the new physical page and make it writable.
-        if(1) {
-          // Failed to update page table, free the new page and kill the process
-          printf("to free\n");
-          kfree(mem);
-          p->killed = 1;
-        }
-      }
-    }
-  } else {
+// Now, remap the virtual address to the new physical page and make it writable.
+if(mappages(p->pagetable, PGROUNDDOWN(faulting_va), PGSIZE, (uint64)mem, PTE_FLAGS(*pte) | PTE_W) != 0) {
+// Failed to update page table, free the new page and kill the process
+printf("failed\n");
+kfree(mem);
+ p->killed = 1;
+}
+printf("mapped\n");
+}
+}
+} else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     setkilled(p);

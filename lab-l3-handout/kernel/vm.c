@@ -345,7 +345,7 @@ int uvmcow(pagetable_t old, pagetable_t new, uint64 sz) {
 
         // Adjust flags to be read-only
         flags = PTE_FLAGS(*pte) & ~PTE_W;
-        flags |= PTE_R; // Ensure read permission is set
+        flags |= PTE_COW; // Ensure read permission is set
 
         // Map the page as read-only in the child's page table
         if(mappages(new, i, PGSIZE, PTE2PA(*pte), flags) != 0){
