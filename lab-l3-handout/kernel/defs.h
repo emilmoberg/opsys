@@ -71,6 +71,8 @@ void ramdiskrw(struct buf *);
 void *kalloc(void);
 void kfree(void *);
 void kinit(void);
+void newkfree(void *);
+void *newkalloc(void);
 void refinc(void *pa);
 void refdec(void *pa);
 

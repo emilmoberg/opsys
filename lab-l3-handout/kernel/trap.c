@@ -96,7 +96,7 @@ usertrap(void)
     if(pte == 0)
         panic("uvmcopy: pte should exist");
 
-    if ((new_page = kalloc())==0){
+    if ((new_page = newkalloc())==0){
           printf("SEAGFAULT\n");
           setkilled(p);
     }
@@ -109,7 +109,7 @@ usertrap(void)
 
     if(mappages(pagetable, base, PGSIZE, (uint64)new_page, flags) != 0){
       if (counter[((uint64)new_page-KERNBASE )/ PGSIZE]==0)
-        kfree(new_page);
+        newkfree(new_page);
       else
         refdec((void *)PA);
       printf("SEAGFAULT\n");
