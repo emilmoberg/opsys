@@ -16,6 +16,8 @@ void kernelvec();
 
 extern int devintr();
 
+extern int counter[(PHYSTOP-KERNBASE)/PGSIZE];
+
 void
 trapinit(void)
 {
@@ -76,43 +78,43 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if(r_scause() == 15) { // Check for a page fault due to write attempt !!!!!!!!!!! TODOOOOOO
-    uint64 faulting_va = r_stval();
-    struct proc *p = myproc();
+  } else if(r_scause()==0x000000000000000fL){
 
-    char *mem;
+    uint64 va = r_stval();
+    uint64 base = PGROUNDDOWN(va);
+    char *new_page;
     pte_t *pte;
-    uint64 pa;
+    uint64 flags;
 
-    // Walk the page table to find the PTE for the faulting address
-    pte = walk(p->pagetable, faulting_va, 0);
-    if(pte == 0 || (*pte & PTE_V) == 0 || !(*pte & PTE_R) || (*pte & PTE_W)) {
-      // This is not a COW fault, handle as unexpected page fault
-      p->killed = 1;
-    } else {
-      // Allocate a new page and copy contents from the old page
-      mem = kalloc();
-      if(mem == 0) {
-        // Failed to allocate memory, kill the process
-        p->killed = 1;
-      } else {
-        pa = PTE2PA(*pte);
-        memmove(mem, (char*)pa, PGSIZE);
-        printf("did move mem\n");
+    pagetable_t pagetable = p->pagetable;
+    pte = walk(pagetable,base,0);
+    uint64 PA = PTE2PA(*pte);
 
-        // Before updating the PTE, unmap the old mapping.
-        uvmunmap(p->pagetable, PGROUNDDOWN(faulting_va), 1, 1);
-        printf("unmapped\n");
+    if (PA==0)
+      panic("uvmcopy: walkaddr failed\n");
 
-        // Now, remap the virtual address to the new physical page and make it writable.
-        if(1) {
-          // Failed to update page table, free the new page and kill the process
-          printf("to free\n");
-          kfree(mem);
-          p->killed = 1;
-        }
-      }
+    if(pte == 0)
+        panic("uvmcopy: pte should exist");
+
+    if ((new_page = kalloc())==0){
+          printf("SEAGFAULT\n");
+          setkilled(p);
     }
+
+    flags = PTE_FLAGS(*pte);
+    flags |= PTE_W;
+
+    memmove(new_page,(void *)PA, PGSIZE);
+    uvmunmap(pagetable, base, 1, 1);
+
+    if(mappages(pagetable, base, PGSIZE, (uint64)new_page, flags) != 0){
+      if (counter[((uint64)new_page-KERNBASE )/ PGSIZE]==0)
+        kfree(new_page);
+      else
+        refdec((void *)PA);
+      printf("SEAGFAULT\n");
+    }
+
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

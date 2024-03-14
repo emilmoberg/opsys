@@ -333,32 +333,31 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 }
 
 int uvmcow(pagetable_t old, pagetable_t new, uint64 sz) {
-    pte_t *pte;
-    uint64 i;
-    uint flags;
+  pte_t *pte;
+  uint64 pa, i;
+  uint flags;
 
-    for(i = 0; i < sz; i += PGSIZE){
-        if((pte = walk(old, i, 0)) == 0)
-            panic("uvmcow: pte should exist");
-        if((*pte & PTE_V) == 0)
-            panic("uvmcow: page not present");
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walk(old, i, 0)) == 0)
+      panic("uvmcopy: pte should exist");
+    if((*pte & PTE_V) == 0)
+      panic("uvmcopy: page not present");
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
+    flags &= ~PTE_W; 
 
-        // Adjust flags to be read-only
-        flags = PTE_FLAGS(*pte) & ~PTE_W;
-        flags |= PTE_R; // Ensure read permission is set
-
-        // Map the page as read-only in the child's page table
-        if(mappages(new, i, PGSIZE, PTE2PA(*pte), flags) != 0){
-            goto err;
-        }
-
-        // Increment the reference count for the physical page if needed
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
+      goto err;
     }
-    return 0;
+    refinc((void *)pa);
+    uvmunmap(old,i,1,0);
+    mappages(old,i,PGSIZE,pa,flags);
+  }
+  return 0;
 
-err:
-    uvmunmap(new, 0, i / PGSIZE, 1);
-    return -1;
+ err:
+  uvmunmap(new, 0, i / PGSIZE, 1);
+  return -1;
 }
 
 
