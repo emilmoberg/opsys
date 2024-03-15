@@ -78,7 +78,7 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if(r_scause()==0x000000000000000fL){
+  } else if(r_scause()==15){
 
     uint64 va = r_stval();
     uint64 base = PGROUNDDOWN(va);
@@ -91,13 +91,12 @@ usertrap(void)
     uint64 PA = PTE2PA(*pte);
 
     if (PA==0)
-      panic("uvmcopy: walkaddr failed\n");
+      panic("in scause 15 trap\n");
 
     if(pte == 0)
-        panic("uvmcopy: pte should exist");
+        panic("in scause 15 trap\n");
 
     if ((new_page = newkalloc())==0){
-          printf("SEAGFAULT\n");
           setkilled(p);
     }
 
@@ -112,7 +111,6 @@ usertrap(void)
         newkfree(new_page);
       else
         refdec((void *)PA);
-      printf("SEAGFAULT\n");
     }
 
   } else {
